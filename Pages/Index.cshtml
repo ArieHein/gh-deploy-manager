@@ -64,10 +64,7 @@
                     @foreach (var environment in Model.Dashboard.Environments)
                     {
                         var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
-                        var wasLastSuccessfulDeployment =
-                            string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+                        var attemptStatus = hasState ? currentState!.LastAttemptStatus : string.Empty;
 
                         <div class="kanban-env-cell" data-project-id="@project.Id" data-environment="@environment" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
                             <div class="kanban-cell-inner">
@@ -101,8 +98,8 @@
                                             <button type="submit" class="kanban-cell-deploy-btn" title="Deploy to @environment" aria-label="Deploy @project.Name to @environment">
                                                 ↓
                                             </button>
-                                            <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
-                                                @(wasLastSuccessfulDeployment ? "✓" : string.Empty)
+                                            <span class="status-chip js-deploy-status @Model.GetStatusChipClass(attemptStatus)">
+                                                @Model.GetStatusChipLabel(attemptStatus, compact: true)
                                             </span>
                                         </div>
                                     }
@@ -150,16 +147,13 @@ else if (Model.IsModernUi)
                         @foreach (var environment in Model.Dashboard.Environments)
                         {
                             var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
-                            var wasLastSuccessfulDeployment =
-                                string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+                            var attemptStatus = hasState ? currentState!.LastAttemptStatus : string.Empty;
                             <div class="modern-env-row" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
                                 <div class="modern-env-meta">
                                     <p class="mb-1 fw-semibold d-flex align-items-center gap-2">
                                         <span>@environment</span>
-                                        <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
-                                            @(wasLastSuccessfulDeployment ? "Deployed" : string.Empty)
+                                        <span class="status-chip js-deploy-status @Model.GetStatusChipClass(attemptStatus)">
+                                            @Model.GetStatusChipLabel(attemptStatus, compact: false)
                                         </span>
                                     </p>
                                     @if (hasState)
@@ -171,6 +165,18 @@ else if (Model.IsModernUi)
                                             Updated @currentState.DeployedAtUtc.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
                                         </p>
                                     }
+                                </div>
+
+                                <div class="modern-progress-cell">
+                                    <div class="deploy-animation" aria-live="polite">
+                                        <div class="deploy-spinner-line">
+                                            <span class="deploy-spinner" aria-hidden="true"></span>
+                                            <span class="deploy-status">Deploying...</span>
+                                        </div>
+                                        <div class="deploy-progress-track" aria-hidden="true">
+                                            <div class="deploy-progress-bar"></div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <form method="post" asp-page-handler="Deploy" class="deploy-form modern-row-form">
@@ -193,15 +199,6 @@ else if (Model.IsModernUi)
                                             aria-label="Promote selected release to @environment">
                                             <span aria-hidden="true">&gt;</span>
                                         </button>
-                                    </div>
-                                    <div class="deploy-animation mt-2" aria-live="polite">
-                                        <div class="deploy-spinner-line">
-                                            <span class="deploy-spinner" aria-hidden="true"></span>
-                                            <span class="deploy-status">Deploying...</span>
-                                        </div>
-                                        <div class="deploy-progress-track" aria-hidden="true">
-                                            <div class="deploy-progress-bar"></div>
-                                        </div>
                                     </div>
                                 </form>
                             </div>
@@ -237,10 +234,7 @@ else
                             @foreach (var environment in Model.Dashboard.Environments)
                             {
                                 var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
-                                var wasLastSuccessfulDeployment =
-                                    string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
-                                    && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
-                                    && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+                                var attemptStatus = hasState ? currentState!.LastAttemptStatus : string.Empty;
                                 <td data-project-id="@project.Id" data-environment="@environment" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
                                     @if (hasState)
                                     {
@@ -249,8 +243,8 @@ else
                                             <div class="small">
                                                 <div class="release-line-row">
                                                     <div class="js-release-line"><strong>@currentState.Version</strong> (@currentState.BuildId) · @(currentState.DurationSeconds < 60 ? $"{currentState.DurationSeconds}s" : $"{currentState.DurationSeconds / 60}m {currentState.DurationSeconds % 60}s")</div>
-                                                    <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
-                                                        @(wasLastSuccessfulDeployment ? "Deployed" : string.Empty)
+                                                    <span class="status-chip js-deploy-status @Model.GetStatusChipClass(attemptStatus)">
+                                                        @Model.GetStatusChipLabel(attemptStatus, compact: false)
                                                     </span>
                                                 </div>
                                                 <div class="text-secondary js-deployed-at">@currentState.DeployedAtUtc.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</div>
@@ -271,7 +265,7 @@ else
                                             }
                                         </select>
                                         <button type="submit" class="btn btn-sm btn-primary w-100">Deploy</button>
-                                        <div class="deploy-animation mt-2" aria-live="polite">
+                                        <div class="deploy-animation" aria-live="polite">
                                             <div class="deploy-spinner-line">
                                                 <span class="deploy-spinner" aria-hidden="true"></span>
                                                 <span class="deploy-status">Deploying...</span>
@@ -313,7 +307,7 @@ else
                         <td>@entry.ProjectName</td>
                         <td>@entry.Environment</td>
                         <td>@entry.Version (@entry.BuildId)</td>
-                        <td><span class="badge text-bg-success">@entry.Status</span></td>
+                        <td><span class="badge @Model.GetEventBadgeClass(entry.Status)">@entry.Status</span></td>
                         <td>@entry.TriggeredBy</td>
                     </tr>
                 }

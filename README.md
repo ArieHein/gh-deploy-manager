@@ -22,7 +22,7 @@ The Kanban UI includes:
 - **Environment lanes** for visual deployment flow (Development → Test → Staging → Production)
 - **Project cards** showing current deployment status and versions
 - **Deployment animations** with spinner and progress bar
-- **Status indicators** (Queued/Deployed) inline with project information
+- **Status indicators** (Queued/Deployed/Failed) inline with project information, preserved per project/environment as the most recent deployment attempt
 - **Duration display** showing how long the last deployment took
 - **Responsive design** with smooth hover effects and visual feedback
 - **Promote buttons** for quick version deployment to each environment

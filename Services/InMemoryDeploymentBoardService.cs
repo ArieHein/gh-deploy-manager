@@ -73,38 +73,55 @@ public sealed class InMemoryDeploymentBoardService : IDeploymentBoardService
         }
     }
 
-    public bool Deploy(string projectId, string environment, string releaseVersion, string triggeredBy, out string error)
+    public DeploymentAttemptResult Deploy(string projectId, string environment, string releaseVersion, string triggeredBy)
     {
         lock (_syncRoot)
         {
             var targetProject = _projects.FirstOrDefault(project => string.Equals(project.Id, projectId, StringComparison.OrdinalIgnoreCase));
             if (targetProject is null)
             {
-                error = "Project was not found.";
-                return false;
+                return new DeploymentAttemptResult(false, "Project was not found.", null);
             }
 
             if (!_environments.Contains(environment, StringComparer.OrdinalIgnoreCase))
             {
-                error = "Environment is invalid.";
-                return false;
+                return new DeploymentAttemptResult(false, "Environment is invalid.", null);
             }
 
             var selectedRelease = targetProject.Releases.FirstOrDefault(release => string.Equals(release.Version, releaseVersion, StringComparison.OrdinalIgnoreCase));
             if (selectedRelease is null)
             {
-                error = "Release version is invalid.";
-                return false;
+                return new DeploymentAttemptResult(false, "Release version is invalid.", null);
+            }
+
+            if (!targetProject.EnvironmentStates.TryGetValue(environment, out var existingState))
+            {
+                return new DeploymentAttemptResult(false, "Environment state was not found.", null);
             }
 
             var deploymentTime = DateTimeOffset.UtcNow;
-            targetProject.EnvironmentStates[environment] = new EnvironmentDeployment(
-                environment,
-                selectedRelease.Version,
-                selectedRelease.BuildId,
-                deploymentTime,
-                "Healthy",
-                NextDurationSeconds());
+            var simulatedFailure = ShouldSimulateFailure();
+
+            if (simulatedFailure)
+            {
+                targetProject.EnvironmentStates[environment] = existingState with
+                {
+                    LastAttemptStatus = DeploymentAttemptStatuses.Failed,
+                    LastAttemptedAtUtc = deploymentTime
+                };
+            }
+            else
+            {
+                targetProject.EnvironmentStates[environment] = new EnvironmentDeployment(
+                    environment,
+                    selectedRelease.Version,
+                    selectedRelease.BuildId,
+                    deploymentTime,
+                    "Healthy",
+                    NextDurationSeconds(),
+                    DeploymentAttemptStatuses.Succeeded,
+                    deploymentTime);
+            }
 
             _events.Insert(
                 0,
@@ -114,11 +131,13 @@ public sealed class InMemoryDeploymentBoardService : IDeploymentBoardService
                     selectedRelease.Version,
                     selectedRelease.BuildId,
                     string.IsNullOrWhiteSpace(triggeredBy) ? "unknown-user" : triggeredBy,
-                    "Succeeded",
+                    simulatedFailure ? DeploymentAttemptStatuses.Failed : DeploymentAttemptStatuses.Succeeded,
                     deploymentTime));
 
-            error = string.Empty;
-            return true;
+            return new DeploymentAttemptResult(
+                true,
+                string.Empty,
+                simulatedFailure ? DeploymentAttemptStatuses.Failed : DeploymentAttemptStatuses.Succeeded);
         }
     }
 
@@ -130,10 +149,10 @@ public sealed class InMemoryDeploymentBoardService : IDeploymentBoardService
     {
         var states = new Dictionary<string, EnvironmentDeployment>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Development"] = new EnvironmentDeployment("Development", releases[2].Version, releases[2].BuildId, DateTimeOffset.UtcNow.AddHours(-2), "Healthy", NextDurationSeconds()),
-            ["Test"] = new EnvironmentDeployment("Test", releases[1].Version, releases[1].BuildId, DateTimeOffset.UtcNow.AddHours(-6), "Healthy", NextDurationSeconds()),
-            ["Staging"] = new EnvironmentDeployment("Staging", releases[0].Version, releases[0].BuildId, DateTimeOffset.UtcNow.AddDays(-1), "Healthy", NextDurationSeconds()),
-            ["Production"] = new EnvironmentDeployment("Production", releases[0].Version, releases[0].BuildId, DateTimeOffset.UtcNow.AddDays(-4), "Healthy", NextDurationSeconds())
+            ["Development"] = SeedDeployment("Development", releases[2].Version, releases[2].BuildId, DateTimeOffset.UtcNow.AddHours(-2)),
+            ["Test"] = SeedDeployment("Test", releases[1].Version, releases[1].BuildId, DateTimeOffset.UtcNow.AddHours(-6)),
+            ["Staging"] = SeedDeployment("Staging", releases[0].Version, releases[0].BuildId, DateTimeOffset.UtcNow.AddDays(-1)),
+            ["Production"] = SeedDeployment("Production", releases[0].Version, releases[0].BuildId, DateTimeOffset.UtcNow.AddDays(-4))
         };
 
         return new ProjectState(id, name, lifecycle, releases.ToList(), states);
@@ -158,4 +177,23 @@ public sealed class InMemoryDeploymentBoardService : IDeploymentBoardService
     }
 
     private static int NextDurationSeconds() => Random.Shared.Next(12, 96);
+
+    private static bool ShouldSimulateFailure() => Random.Shared.Next(0, 5) == 0;
+
+    private static EnvironmentDeployment SeedDeployment(
+        string environment,
+        string version,
+        string buildId,
+        DateTimeOffset deployedAtUtc)
+    {
+        return new EnvironmentDeployment(
+            environment,
+            version,
+            buildId,
+            deployedAtUtc,
+            "Healthy",
+            NextDurationSeconds(),
+            DeploymentAttemptStatuses.Succeeded,
+            deployedAtUtc);
+    }
 }

@@ -6,5 +6,5 @@ public interface IDeploymentBoardService
 {
     DeploymentDashboard GetDashboard();
 
-    bool Deploy(string projectId, string environment, string releaseVersion, string triggeredBy, out string error);
+    DeploymentAttemptResult Deploy(string projectId, string environment, string releaseVersion, string triggeredBy);
 }

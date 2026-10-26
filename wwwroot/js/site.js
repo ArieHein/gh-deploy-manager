@@ -21,17 +21,41 @@
                 submitButton.disabled = true;
             }
 
-            const progressBar = form.querySelector(".deploy-progress-bar");
+            const row = form.closest(".modern-env-row") || form.closest(".kanban-env-cell") || form.closest("[data-current-version]");
+            const progressBar = form.querySelector(".deploy-progress-bar") ?? row?.querySelector(".deploy-progress-bar");
             if (progressBar) {
-                progressBar.style.width = "15%";
+                const isVerticalProgress =
+                    form.classList.contains("kanban-deploy-form")
+                    || form.classList.contains("modern-row-form")
+                    || !!row?.classList.contains("modern-env-row");
+
+                if (isVerticalProgress) {
+                    progressBar.style.width = "100%";
+                    progressBar.style.height = "15%";
+                } else {
+                    progressBar.style.width = "15%";
+                }
+
                 setTimeout(() => {
-                    progressBar.style.width = "55%";
+                    if (isVerticalProgress) {
+                        progressBar.style.height = "55%";
+                    } else {
+                        progressBar.style.width = "55%";
+                    }
                 }, 160);
                 setTimeout(() => {
-                    progressBar.style.width = "88%";
+                    if (isVerticalProgress) {
+                        progressBar.style.height = "88%";
+                    } else {
+                        progressBar.style.width = "88%";
+                    }
                 }, 520);
                 setTimeout(() => {
-                    progressBar.style.width = "100%";
+                    if (isVerticalProgress) {
+                        progressBar.style.height = "100%";
+                    } else {
+                        progressBar.style.width = "100%";
+                    }
                 }, 900);
             }
 
@@ -63,13 +87,18 @@
         }
 
         statusElement.textContent = "Queued";
-        statusElement.classList.remove("status-chip-hidden", "status-chip-success");
+        statusElement.classList.remove("status-chip-hidden", "status-chip-success", "status-chip-failed");
         statusElement.classList.add("status-chip-queued");
 
-        // For kanban UI, add visual feedback to the cell
-        const cell = form.closest(".kanban-env-cell");
-        if (cell) {
-            cell.classList.add("is-deploying");
+        // Add visual feedback to the current row/cell
+        const kanbanCell = form.closest(".kanban-env-cell");
+        if (kanbanCell) {
+            kanbanCell.classList.add("is-deploying");
+        }
+
+        const modernRow = form.closest(".modern-env-row");
+        if (modernRow) {
+            modernRow.classList.add("is-deploying");
         }
     }
 });

@@ -122,9 +122,13 @@ body {
   padding: 0.55rem;
   background: #fbfcff;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(340px, 1fr);
-  gap: 0.7rem;
+  grid-template-columns: minmax(220px, 1.2fr) 90px minmax(290px, 1.6fr);
+  gap: 0.9rem;
   align-items: center;
+}
+
+.modern-env-meta {
+  min-width: 0;
 }
 
 .modern-env-meta p {
@@ -157,15 +161,82 @@ body {
   border-color: #b8ebcd;
 }
 
+.status-chip-failed {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f1aeb5;
+}
+
+.modern-progress-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+}
+
+.modern-env-row .deploy-animation {
+  display: none;
+}
+
+.modern-env-row.is-deploying .modern-progress-cell .deploy-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.modern-env-row.is-deploying .modern-progress-cell .deploy-spinner-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: #33455f;
+}
+
+.modern-progress-cell .deploy-spinner-line {
+  display: none;
+}
+
+.modern-env-row.is-deploying .modern-progress-cell .deploy-progress-track {
+  width: 10px;
+  height: 34px;
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #d8e2f0;
+}
+
+.modern-progress-cell .deploy-progress-track {
+  display: none;
+}
+
+.modern-progress-cell .deploy-progress-bar {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(180deg, #62a0ff 0%, #2f77d7 100%);
+  transition: height 0.2s linear;
+}
+
 .modern-row-form {
   margin: 0;
+  width: 100%;
 }
 
 .modern-row-actions {
   display: grid;
-  grid-template-columns: 1fr 38px;
+  grid-template-columns: minmax(0, 1fr) 38px;
   gap: 0.45rem;
   align-items: center;
+  min-width: 0;
+}
+
+.modern-row-actions .form-select {
+  width: 100%;
+  min-width: 0;
 }
 
 .icon-promote-btn {
@@ -190,6 +261,10 @@ body {
 @media (max-width: 900px) {
   .modern-env-row {
     grid-template-columns: 1fr;
+  }
+
+  .modern-progress-cell {
+    justify-content: flex-start;
   }
 }
 
@@ -237,6 +312,11 @@ body {
 
 .deploy-form.is-deploying .deploy-animation {
   display: block;
+  margin-top: 0;
+}
+
+.deploy-form.is-deploying .btn[type='submit'] {
+  display: none;
 }
 
 .deploy-spinner-line {
@@ -258,7 +338,7 @@ body {
 }
 
 .deploy-progress-track {
-  height: 4px;
+  height: 6px;
   background: #d8e2f0;
   border-radius: 999px;
   overflow: hidden;
@@ -523,13 +603,17 @@ body {
 }
 
 .kanban-env-cell .deploy-animation {
-  font-size: 0.7rem;
-  margin-top: 0.5rem;
+  position: absolute;
+  left: 0.35rem;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 8px;
+  margin: 0;
+  display: none;
 }
 
 .kanban-env-cell .deploy-spinner-line {
-  gap: 0.3rem;
-  margin-bottom: 0.25rem;
+  display: none;
 }
 
 .kanban-env-cell .deploy-spinner {
@@ -539,7 +623,20 @@ body {
 }
 
 .kanban-env-cell .deploy-progress-track {
-  height: 3px;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  display: flex;
+  align-items: flex-end;
+  background: #d8e2f0;
+  overflow: hidden;
+}
+
+.kanban-env-cell .deploy-progress-bar {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(180deg, #62a0ff 0%, #2f77d7 100%);
+  transition: height 0.2s linear;
 }
 
 .kanban-env-cell .status-chip {

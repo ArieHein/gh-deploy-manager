@@ -8,7 +8,9 @@ public sealed record EnvironmentDeployment(
     string BuildId,
     DateTimeOffset DeployedAtUtc,
     string Health,
-    int DurationSeconds);
+    int DurationSeconds,
+    string LastAttemptStatus,
+    DateTimeOffset LastAttemptedAtUtc);
 
 public sealed record DeploymentProject(
     string Id,
@@ -30,3 +32,15 @@ public sealed record DeploymentDashboard(
     IReadOnlyList<string> Environments,
     IReadOnlyList<DeploymentProject> Projects,
     IReadOnlyList<DeploymentEvent> RecentEvents);
+
+public sealed record DeploymentAttemptResult(
+    bool IsValid,
+    string ErrorMessage,
+    string? AttemptStatus);
+
+public static class DeploymentAttemptStatuses
+{
+    public const string Queued = "Queued";
+    public const string Succeeded = "Succeeded";
+    public const string Failed = "Failed";
+}

@@ -23,15 +23,6 @@ public class IndexModel : PageModel
     [TempData]
     public string? ErrorMessage { get; set; }
 
-    [TempData]
-    public string? LastDeploymentProjectId { get; set; }
-
-    [TempData]
-    public string? LastDeploymentEnvironment { get; set; }
-
-    [TempData]
-    public string? LastDeploymentStatus { get; set; }
-
     public string UiVariant { get; private set; } = "classic";
 
     public bool IsModernUi => string.Equals(UiVariant, ModernUiVariant, StringComparison.OrdinalIgnoreCase);
@@ -47,18 +38,42 @@ public class IndexModel : PageModel
     public IActionResult OnPostDeploy(string projectId, string environment, string releaseVersion)
     {
         var triggeredBy = User.Identity?.Name ?? "anonymous";
-        var deployed = _deploymentBoardService.Deploy(projectId, environment, releaseVersion, triggeredBy, out var error);
+        var deploymentResult = _deploymentBoardService.Deploy(projectId, environment, releaseVersion, triggeredBy);
 
-        if (!deployed)
+        if (!deploymentResult.IsValid)
         {
-            ErrorMessage = error;
+            ErrorMessage = deploymentResult.ErrorMessage;
             return RedirectToPage();
         }
 
-        LastDeploymentProjectId = projectId;
-        LastDeploymentEnvironment = environment;
-        LastDeploymentStatus = "success";
         return RedirectToPage();
+    }
+
+    public string GetStatusChipClass(string? status)
+    {
+        if (string.Equals(status, DeploymentAttemptStatuses.Succeeded, StringComparison.OrdinalIgnoreCase))
+            return "status-chip-success";
+        if (string.Equals(status, DeploymentAttemptStatuses.Failed, StringComparison.OrdinalIgnoreCase))
+            return "status-chip-failed";
+        return "status-chip-hidden";
+    }
+
+    public string GetStatusChipLabel(string? status, bool compact)
+    {
+        if (string.Equals(status, DeploymentAttemptStatuses.Succeeded, StringComparison.OrdinalIgnoreCase))
+            return compact ? "✓" : "Deployed";
+        if (string.Equals(status, DeploymentAttemptStatuses.Failed, StringComparison.OrdinalIgnoreCase))
+            return compact ? "✕" : "Failed";
+        return string.Empty;
+    }
+
+    public string GetEventBadgeClass(string status)
+    {
+        if (string.Equals(status, DeploymentAttemptStatuses.Succeeded, StringComparison.OrdinalIgnoreCase))
+            return "text-bg-success";
+        if (string.Equals(status, DeploymentAttemptStatuses.Failed, StringComparison.OrdinalIgnoreCase))
+            return "text-bg-danger";
+        return "text-bg-secondary";
     }
 
     private string ResolveUiVariant()
