@@ -18,7 +18,9 @@ This is a lightweight ASP.NET Core Razor Pages concept app inspired by the Octop
 You can choose the dashboard UI mode on the login screen. If none is selected, the classic view is used by default.
 
 ### Kanban Board Features
+
 The Kanban UI includes:
+
 - **Environment lanes** for visual deployment flow (Development → Test → Staging → Production)
 - **Project cards** showing current deployment status and versions
 - **Deployment animations** with spinner and progress bar
