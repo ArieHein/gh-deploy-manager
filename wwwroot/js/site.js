@@ -86,7 +86,7 @@
             return;
         }
 
-        statusElement.textContent = "Queued";
+        statusElement.textContent = "⏳";
         statusElement.classList.remove("status-chip-hidden", "status-chip-success", "status-chip-failed");
         statusElement.classList.add("status-chip-queued");
 
