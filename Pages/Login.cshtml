@@ -1,0 +1,59 @@
+@page
+@model gh_deploy_manager.Pages.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+
+<section class="login-shell">
+    <div class="card login-card shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="h4 mb-1">Deploy Manager</h1>
+            <p class="text-secondary mb-4">Sign in to open the deployment dashboard.</p>
+
+            <form method="post" novalidate>
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Username" class="form-label"></label>
+                    <input asp-for="Username" class="form-control" autocomplete="username" />
+                    <span asp-validation-for="Username" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label"></label>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="UiVariant" class="form-label">Dashboard UI</label>
+                    <select asp-for="UiVariant" class="form-select">
+                        <option value="">Classic board (default)</option>
+                        <option value="modern">Modern release promotion view</option>
+                        <option value="kanban">Kanban deployment board</option>
+                    </select>
+                    <div class="form-text">You can choose your preferred deployment UI at sign-in.</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Sign in</button>
+            </form>
+
+            <hr class="my-4" />
+            <p class="small text-secondary mb-1">Demo users from appsettings.json:</p>
+            <ul class="small mb-0">
+                <li>admin / DemoPass!2026</li>
+                <li>release-bot / Release!2026</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

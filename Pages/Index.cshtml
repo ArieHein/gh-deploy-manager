@@ -1,0 +1,323 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Deployments";
+}
+
+<section class="dashboard-header mb-4">
+    <div>
+        <h1 class="h3 mb-1">Deployment Board</h1>
+        <p class="text-secondary mb-0">
+            @if (Model.IsKanbanUi)
+            {
+                <span>Kanban-style deployment board for promoting releases across environments.</span>
+            }
+            else if (Model.IsModernUi)
+            {
+                <span>Modern, simple release promotion view for multi-project multi-environment deployments.</span>
+            }
+            else
+            {
+                <span>Concept dashboard inspired by Octopus-style release promotion.</span>
+            }
+        </p>
+    </div>
+    <div class="d-flex flex-column align-items-end gap-2">
+        <span class="badge signed-in-badge px-3 py-2">Signed in as @User.Identity?.Name</span>
+        <span class="badge text-bg-light border text-uppercase">UI: @(Model.IsKanbanUi ? "Kanban" : Model.IsModernUi ? "Modern" : "Classic")</span>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div id="deploy-feedback" class="mb-3">
+        <div class="alert alert-danger py-2 mb-0" role="alert">@Model.ErrorMessage</div>
+    </div>
+}
+
+@if (Model.IsKanbanUi)
+{
+    <section class="kanban-board mb-4">
+        <div class="kanban-header">
+            <div class="kanban-env-labels">
+                <div class="kanban-env-label-spacer">Projects</div>
+                @foreach (var environment in Model.Dashboard.Environments)
+                {
+                    <div class="kanban-env-label">@environment</div>
+                }
+            </div>
+        </div>
+
+        <div class="kanban-rows">
+            @foreach (var project in Model.Dashboard.Projects)
+            {
+                var latestRelease = project.Releases.OrderByDescending(release => release.Version).FirstOrDefault();
+
+                <div class="kanban-project-row">
+                    <div class="kanban-project-cell">
+                        <div class="kanban-project-info">
+                            <h3 class="kanban-project-name">@project.Name</h3>
+                            <p class="kanban-project-lifecycle">@project.Lifecycle</p>
+                        </div>
+                    </div>
+
+                    @foreach (var environment in Model.Dashboard.Environments)
+                    {
+                        var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
+                        var wasLastSuccessfulDeployment =
+                            string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+
+                        <div class="kanban-env-cell" data-project-id="@project.Id" data-environment="@environment" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
+                            <div class="kanban-cell-inner">
+                                @if (hasState)
+                                {
+                                    <div class="kanban-cell-version">
+                                        <p class="kanban-cell-version-value">@currentState!.Version</p>
+                                        <p class="kanban-cell-meta">@currentState.BuildId</p>
+                                        <p class="kanban-cell-duration">@(currentState.DurationSeconds < 60 ? $"{currentState.DurationSeconds}s" : $"{currentState.DurationSeconds / 60}m {currentState.DurationSeconds % 60}s")</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="kanban-cell-empty">—</p>
+                                }
+
+                                <form method="post" asp-page-handler="Deploy" class="deploy-form kanban-deploy-form">
+                                    <input type="hidden" name="projectId" value="@project.Id" />
+                                    <input type="hidden" name="projectName" value="@project.Name" />
+                                    <input type="hidden" name="environment" value="@environment" />
+                                    
+                                    @if (latestRelease is not null)
+                                    {
+                                        <div class="kanban-cell-deploy">
+                                            <select class="form-select form-select-sm kanban-cell-select" name="releaseVersion" aria-label="Release version" title="Select version to deploy">
+                                                @foreach (var release in project.Releases.OrderByDescending(release => release.Version))
+                                                {
+                                                    <option value="@release.Version">@release.Version</option>
+                                                }
+                                            </select>
+                                            <button type="submit" class="kanban-cell-deploy-btn" title="Deploy to @environment" aria-label="Deploy @project.Name to @environment">
+                                                ↓
+                                            </button>
+                                            <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
+                                                @(wasLastSuccessfulDeployment ? "✓" : string.Empty)
+                                            </span>
+                                        </div>
+                                    }
+
+                                    <div class="deploy-animation" aria-live="polite">
+                                        <div class="deploy-spinner-line">
+                                            <span class="deploy-spinner" aria-hidden="true"></span>
+                                            <span class="deploy-status">Deploying...</span>
+                                        </div>
+                                        <div class="deploy-progress-track" aria-hidden="true">
+                                            <div class="deploy-progress-bar"></div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+else if (Model.IsModernUi)
+{
+    <section class="modern-board mb-4">
+        <div class="modern-project-list">
+            @foreach (var project in Model.Dashboard.Projects)
+            {
+                var latestRelease = project.Releases.OrderByDescending(release => release.Version).FirstOrDefault();
+                <article class="modern-project-card">
+                    <header class="modern-project-header">
+                        <div>
+                            <h2 class="h6 mb-1">@project.Name</h2>
+                            <p class="small text-secondary mb-0">@project.Lifecycle</p>
+                        </div>
+                        @if (latestRelease is not null)
+                        {
+                            <span class="modern-latest-release">
+                                New available: <strong>@latestRelease.Version</strong> (@latestRelease.BuildId, @latestRelease.Tag)
+                            </span>
+                        }
+                    </header>
+
+                    <div class="modern-env-list">
+                        @foreach (var environment in Model.Dashboard.Environments)
+                        {
+                            var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
+                            var wasLastSuccessfulDeployment =
+                                string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+                            <div class="modern-env-row" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
+                                <div class="modern-env-meta">
+                                    <p class="mb-1 fw-semibold d-flex align-items-center gap-2">
+                                        <span>@environment</span>
+                                        <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
+                                            @(wasLastSuccessfulDeployment ? "Deployed" : string.Empty)
+                                        </span>
+                                    </p>
+                                    @if (hasState)
+                                    {
+                                        <p class="small mb-0 js-release-line">
+                                            Current: <strong>@currentState!.Version</strong> (@currentState.BuildId) · @(currentState.DurationSeconds < 60 ? $"{currentState.DurationSeconds}s" : $"{currentState.DurationSeconds / 60}m {currentState.DurationSeconds % 60}s")
+                                        </p>
+                                        <p class="small text-secondary mb-0 js-deployed-at">
+                                            Updated @currentState.DeployedAtUtc.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+                                        </p>
+                                    }
+                                </div>
+
+                                <form method="post" asp-page-handler="Deploy" class="deploy-form modern-row-form">
+                                    <input type="hidden" name="projectId" value="@project.Id" />
+                                    <input type="hidden" name="projectName" value="@project.Name" />
+                                    <input type="hidden" name="environment" value="@environment" />
+                                    <div class="modern-row-actions">
+                                        <select class="form-select form-select-sm" name="releaseVersion" aria-label="Release version">
+                                            @foreach (var release in project.Releases.OrderByDescending(release => release.Version))
+                                            {
+                                                <option value="@release.Version">
+                                                    @release.Version | @release.BuildId | @release.Tag
+                                                </option>
+                                            }
+                                        </select>
+                                        <button
+                                            type="submit"
+                                            class="icon-promote-btn"
+                                            title="Promote selected release to @environment"
+                                            aria-label="Promote selected release to @environment">
+                                            <span aria-hidden="true">&gt;</span>
+                                        </button>
+                                    </div>
+                                    <div class="deploy-animation mt-2" aria-live="polite">
+                                        <div class="deploy-spinner-line">
+                                            <span class="deploy-spinner" aria-hidden="true"></span>
+                                            <span class="deploy-status">Deploying...</span>
+                                        </div>
+                                        <div class="deploy-progress-track" aria-hidden="true">
+                                            <div class="deploy-progress-bar"></div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+}
+else
+{
+    <section class="board-panel mb-4">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle deployment-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        @foreach (var environment in Model.Dashboard.Environments)
+                        {
+                            <th>@environment</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var project in Model.Dashboard.Projects)
+                    {
+                        <tr>
+                            <td class="project-col">
+                                <p class="mb-1 fw-semibold">@project.Name</p>
+                                <p class="mb-0 small text-secondary">@project.Lifecycle</p>
+                            </td>
+                            @foreach (var environment in Model.Dashboard.Environments)
+                            {
+                                var hasState = project.EnvironmentStates.TryGetValue(environment, out var currentState);
+                                var wasLastSuccessfulDeployment =
+                                    string.Equals(Model.LastDeploymentStatus, "success", StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(Model.LastDeploymentProjectId, project.Id, StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(Model.LastDeploymentEnvironment, environment, StringComparison.OrdinalIgnoreCase);
+                                <td data-project-id="@project.Id" data-environment="@environment" data-current-version="@(hasState ? currentState!.Version : string.Empty)">
+                                    @if (hasState)
+                                    {
+                                        <div class="cell-state mb-2 js-env-state">
+                                            <span class="badge text-bg-success js-health">@currentState!.Health</span>
+                                            <div class="small">
+                                                <div class="release-line-row">
+                                                    <div class="js-release-line"><strong>@currentState.Version</strong> (@currentState.BuildId) · @(currentState.DurationSeconds < 60 ? $"{currentState.DurationSeconds}s" : $"{currentState.DurationSeconds / 60}m {currentState.DurationSeconds % 60}s")</div>
+                                                    <span class="status-chip js-deploy-status @(wasLastSuccessfulDeployment ? "status-chip-success" : "status-chip-hidden")">
+                                                        @(wasLastSuccessfulDeployment ? "Deployed" : string.Empty)
+                                                    </span>
+                                                </div>
+                                                <div class="text-secondary js-deployed-at">@currentState.DeployedAtUtc.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <form method="post" asp-page-handler="Deploy" class="deploy-form">
+                                        <input type="hidden" name="projectId" value="@project.Id" />
+                                        <input type="hidden" name="projectName" value="@project.Name" />
+                                        <input type="hidden" name="environment" value="@environment" />
+                                        <select class="form-select form-select-sm mb-2" name="releaseVersion" aria-label="Release version">
+                                            @foreach (var release in project.Releases.OrderByDescending(release => release.Version))
+                                            {
+                                                <option value="@release.Version">
+                                                    @release.Version | @release.BuildId | @release.Tag
+                                                </option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary w-100">Deploy</button>
+                                        <div class="deploy-animation mt-2" aria-live="polite">
+                                            <div class="deploy-spinner-line">
+                                                <span class="deploy-spinner" aria-hidden="true"></span>
+                                                <span class="deploy-status">Deploying...</span>
+                                            </div>
+                                            <div class="deploy-progress-track" aria-hidden="true">
+                                                <div class="deploy-progress-bar"></div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+<section class="board-panel">
+    <h2 class="h6 mb-3">Recent deployment activity</h2>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Project</th>
+                    <th>Environment</th>
+                    <th>Release</th>
+                    <th>Status</th>
+                    <th>Triggered by</th>
+                </tr>
+            </thead>
+            <tbody id="recent-events-body">
+                @foreach (var entry in Model.Dashboard.RecentEvents)
+                {
+                    <tr>
+                        <td>@entry.OccurredAtUtc.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@entry.ProjectName</td>
+                        <td>@entry.Environment</td>
+                        <td>@entry.Version (@entry.BuildId)</td>
+                        <td><span class="badge text-bg-success">@entry.Status</span></td>
+                        <td>@entry.TriggeredBy</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
